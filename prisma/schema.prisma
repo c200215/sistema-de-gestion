@@ -1,0 +1,284 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../server/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Perfil {
+  Administrador
+  Trabajador
+}
+
+enum Estado {
+  Pendiente
+  EnCurso   @map("En curso")
+  Terminado
+}
+
+enum Prioridad {
+  Urgente
+  Alta
+  Media
+  Baja
+}
+
+enum TipoTrabajo {
+  Proyecto
+  Consulta
+  SoporteTecnico @map("Soporte técnico")
+}
+
+model Usuario {
+  id             Int            @id @default(autoincrement()) @db.UnsignedInt
+  nombre         String         @unique @db.VarChar(160)
+  correo         String         @unique @db.VarChar(254)
+  perfil         Perfil         @default(Trabajador)
+  especialidad   String         @db.VarChar(100)
+  activo         Boolean        @default(true)
+  eliminado      Boolean        @default(false)
+  password_hash  String         @db.VarChar(200)
+  acceso         DateTime?
+  creado         DateTime       @default(now())
+  actualizado    DateTime       @updatedAt
+  sesiones       Sesion[]
+  trabajos       Trabajo[]      @relation("ResponsableTrabajo")
+  tareas         Tarea[]        @relation("AsignadoTarea")
+  comentarios    Comentario[]
+  documentos     Documento[]
+  historial      Historial[]
+  enviados       Mensaje[]      @relation("EmisorMensaje")
+  recibidos      Mensaje[]      @relation("ReceptorMensaje")
+  lecturas       Lectura[]
+  notificaciones Notificacion[]
+
+  @@index([perfil, activo])
+  @@map("usuarios")
+}
+
+model Sesion {
+  token     String   @id @db.Char(64)
+  usuarioId Int      @db.UnsignedInt
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  expira    DateTime
+
+  @@index([expira])
+  @@map("sesiones")
+}
+
+model Trabajo {
+  id            Int          @id @default(autoincrement()) @db.UnsignedInt
+  titulo        String       @db.VarChar(250)
+  descripcion   String       @db.Text
+  tipo          TipoTrabajo
+  cliente       String       @db.VarChar(250)
+  contacto      String       @db.VarChar(254)
+  canal         String       @db.VarChar(80)
+  prioridad     Prioridad    @default(Media)
+  estado        Estado       @default(Pendiente)
+  fecha         DateTime?    @db.Date
+  responsableId Int?         @db.UnsignedInt
+  responsable   Usuario?     @relation("ResponsableTrabajo", fields: [responsableId], references: [id], onDelete: Restrict)
+  version       Int          @default(1)
+  creado        DateTime     @default(now())
+  actualizado   DateTime     @updatedAt
+  tareas        Tarea[]
+  comentarios   Comentario[]
+  documentos    Documento[]
+  historial     Historial[]
+  correos       Correo[]
+
+  @@index([responsableId, estado])
+  @@index([fecha, tipo])
+  @@map("trabajos")
+}
+
+model Tarea {
+  id          Int          @id @default(autoincrement()) @db.UnsignedInt
+  trabajoId   Int          @db.UnsignedInt
+  trabajo     Trabajo      @relation(fields: [trabajoId], references: [id], onDelete: Cascade)
+  asignadoId  Int          @db.UnsignedInt
+  asignado    Usuario      @relation("AsignadoTarea", fields: [asignadoId], references: [id], onDelete: Restrict)
+  titulo      String       @db.VarChar(250)
+  descripcion String       @db.Text
+  estado      Estado       @default(Pendiente)
+  fecha       DateTime?    @db.Date
+  terminada   DateTime?
+  orden       Int          @default(0)
+  creada      DateTime     @default(now())
+  actualizada DateTime     @updatedAt
+  avances     Comentario[]
+  documentos  Documento[]
+  historial   Historial[]
+
+  @@index([asignadoId, estado])
+  @@index([trabajoId, orden])
+  @@map("tareas")
+}
+
+model Comentario {
+  id        Int      @id @default(autoincrement()) @db.UnsignedInt
+  trabajoId Int      @db.UnsignedInt
+  trabajo   Trabajo  @relation(fields: [trabajoId], references: [id], onDelete: Cascade)
+  tareaId   Int?     @db.UnsignedInt
+  tarea     Tarea?   @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+  autorId   Int      @db.UnsignedInt
+  autor     Usuario  @relation(fields: [autorId], references: [id], onDelete: Restrict)
+  texto     String   @db.Text
+  fecha     DateTime @default(now())
+
+  @@index([trabajoId, fecha])
+  @@index([tareaId, fecha])
+  @@map("comentarios")
+}
+
+// Una carga nueva permanece sin trabajo hasta que se confirma su asociación.
+model Documento {
+  id        String   @id @default(uuid()) @db.Char(36)
+  autorId   Int      @db.UnsignedInt
+  autor     Usuario  @relation(fields: [autorId], references: [id], onDelete: Restrict)
+  trabajoId Int?     @db.UnsignedInt
+  trabajo   Trabajo? @relation(fields: [trabajoId], references: [id], onDelete: Cascade)
+  tareaId   Int?     @db.UnsignedInt
+  tarea     Tarea?   @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+  nombre    String   @db.VarChar(255)
+  contenido Bytes    @db.MediumBlob
+  bytes     Int      @db.UnsignedInt
+  fecha     DateTime @default(now())
+
+  @@index([trabajoId])
+  @@index([tareaId])
+  @@map("documentos")
+}
+
+model Historial {
+  id        Int      @id @default(autoincrement()) @db.UnsignedInt
+  trabajoId Int      @db.UnsignedInt
+  trabajo   Trabajo  @relation(fields: [trabajoId], references: [id], onDelete: Cascade)
+  tareaId   Int?     @db.UnsignedInt
+  tarea     Tarea?   @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+  autorId   Int      @db.UnsignedInt
+  autor     Usuario  @relation(fields: [autorId], references: [id], onDelete: Restrict)
+  texto     String   @db.VarChar(500)
+  fecha     DateTime @default(now())
+
+  @@index([trabajoId, fecha])
+  @@index([tareaId, fecha])
+  @@map("historial")
+}
+
+model Mensaje {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  emisorId   Int      @db.UnsignedInt
+  emisor     Usuario  @relation("EmisorMensaje", fields: [emisorId], references: [id], onDelete: Restrict)
+  receptorId Int?     @db.UnsignedInt
+  receptor   Usuario? @relation("ReceptorMensaje", fields: [receptorId], references: [id], onDelete: Restrict)
+  texto      String   @db.Text
+  creado     DateTime @default(now())
+
+  @@index([emisorId, receptorId, creado])
+  @@index([receptorId, creado])
+  @@map("mensajes")
+}
+
+model Lectura {
+  usuarioId    Int     @db.UnsignedInt
+  usuario      Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  conversacion String  @db.VarChar(30)
+  ultimo       Int     @default(0)
+
+  @@id([usuarioId, conversacion])
+  @@map("lecturas")
+}
+
+model Notificacion {
+  id        Int      @id @default(autoincrement()) @db.UnsignedInt
+  usuarioId Int      @db.UnsignedInt
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  texto     String   @db.VarChar(500)
+  enlace    String   @db.VarChar(200)
+  creado    DateTime @default(now())
+  leida     Boolean  @default(false)
+
+  @@index([usuarioId, leida, creado])
+  @@map("notificaciones")
+}
+
+model Correo {
+  id              Int             @id @default(autoincrement()) @db.UnsignedInt
+  externoId       String?         @unique @db.VarChar(255)
+  remitente       String          @db.VarChar(160)
+  correo          String          @db.VarChar(254)
+  asunto          String          @db.VarChar(255)
+  cuerpo          String          @db.MediumText
+  cliente         String          @db.VarChar(250)
+  tipo            TipoTrabajo     @default(Consulta)
+  recibido        DateTime        @default(now())
+  leido           Boolean         @default(false)
+  descartado      Boolean         @default(false)
+  trabajoId       Int?            @db.UnsignedInt
+  trabajo         Trabajo?        @relation(fields: [trabajoId], references: [id], onDelete: SetNull)
+  cuentaGoogle    String?         @db.VarChar(254)
+  mensajeGoogleId String?         @db.VarChar(255)
+  adjuntos        CorreoAdjunto[]
+
+  @@index([trabajoId, descartado])
+  @@map("correos")
+}
+
+// La aplicación usa un buzón compartido, administrado por los administradores.
+model GmailCuenta {
+  id               Int       @id @default(1)
+  correo           String?   @db.VarChar(254)
+  tokensCifrados   String?   @db.Text
+  requiereConexion Boolean   @default(false)
+  historyId        String?   @db.VarChar(100)
+  syncModo         String?   @db.VarChar(20)
+  syncPagina       String?   @db.Text
+  syncAncla        String?   @db.VarChar(100)
+  syncConsulta     String?   @db.VarChar(200)
+  ultimaSync       DateTime?
+  ultimoError      String?   @db.VarChar(255)
+  operacionId      String?   @db.Char(36)
+  operacionHasta   DateTime?
+  actualizado      DateTime  @updatedAt
+
+  @@map("gmail_cuenta")
+}
+
+model GmailOAuthEstado {
+  hash            String   @id @db.Char(64)
+  navegadorHash   String   @db.Char(64)
+  sesionHash      String   @db.Char(64)
+  verifierCifrado String   @db.Text
+  expira          DateTime
+
+  @@index([expira])
+  @@map("gmail_oauth_estados")
+}
+
+model CorreoAdjunto {
+  id              String  @id @default(uuid()) @db.Char(36)
+  correoId        Int     @db.UnsignedInt
+  correo          Correo  @relation(fields: [correoId], references: [id], onDelete: Cascade)
+  parteId         String  @db.VarChar(100)
+  googleAdjuntoId String? @db.Text
+  nombre          String  @db.VarChar(255)
+  mimeType        String  @db.VarChar(150)
+  bytes           Int     @db.UnsignedInt
+  contenido       Bytes?  @db.MediumBlob
+
+  @@unique([correoId, parteId])
+  @@map("correo_adjuntos")
+}
+
+model IntentoLogin {
+  clave    String   @id @db.Char(64)
+  intentos Int      @default(0)
+  inicio   DateTime @default(now())
+
+  @@index([inicio])
+  @@map("intentos_login")
+}

@@ -1,0 +1,1 @@
+ALTER TABLE `usuarios` ADD COLUMN `eliminado` BOOLEAN NOT NULL DEFAULT false;

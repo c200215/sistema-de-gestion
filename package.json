@@ -1,0 +1,50 @@
+{
+  "name": "mesa-de-gestion",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "db:setup": "prisma migrate deploy && prisma db seed",
+    "start": "node --env-file=.env .output/server/index.mjs",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate",
+    "test:integration": "node --env-file=.env tests/integration.mjs",
+    "gmail:prepare": "node scripts/prepare-gmail.mjs",
+    "test:gmail": "tsx --test tests/gmail.test.ts",
+    "test:gmail:http": "node --env-file=.env tests/gmail-http.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@prisma/adapter-mariadb": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "dotenv": "^18.0.5",
+    "google-auth-library": "^11.1.0",
+    "html-to-text": "^10.0.1",
+    "nuxt": "^4.5.2",
+    "sortablejs": "^1.15.7",
+    "tailwindcss": "^4.3.3",
+    "vue-draggable-plus": "^0.6.1",
+    "zod": "^4.6.5"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/html-to-text": "^9.0.4",
+    "prisma": "^7.10.0",
+    "tsx": "^4.23.15"
+  },
+  "overrides": {
+    "mariadb": "3.5.4",
+    "mysql2": "3.24.5",
+    "deepmerge-ts": "8.0.2"
+  }
+}
